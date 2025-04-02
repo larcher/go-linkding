@@ -63,6 +63,24 @@ type CreateBookmarkRequest struct {
 	TagNames    []string `json:"tag_names"`
 }
 
+// CheckBookmarkResponse represents the response from the Linkding API when
+// checking a if a URL has been bookmarked.
+//
+// Warning: The Bookmark field will be nil if a URL has not been bokmarked.
+type CheckBookmarkResponse struct {
+	Bookmark *Bookmark `json:"bookmark"`
+	Metadata Metadata  `json:"metadata"`
+	AutoTags []string  `json:"auto_tags"`
+}
+
+// Metadata contains metadata scraped from a website.
+type Metadata struct {
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	PreviewImage string `json:"preview_image"`
+}
+
 // ListBookmarks retrieves a list of bookmarks from Linkding based on the
 // provided parameters.
 func (c *Client) ListBookmarks(params ListBookmarksParams) (*ListBookmarksResponse, error) {
@@ -115,6 +133,34 @@ func (c *Client) GetBookmark(id int) (*Bookmark, error) {
 	}
 
 	return bookmark, nil
+}
+
+// CheckBookmark checks if a URL is already bookmarked.
+func (c *Client) CheckBookmark(bookmarkUrl string) (*CheckBookmarkResponse, error) {
+	uri, err := url.Parse(bookmarkUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	query := url.Values{}
+	query.Set("url", uri.String())
+
+	body, err := c.makeRequest(
+		http.MethodGet,
+		fmt.Sprintf("/api/bookmarks/check/?%s", query.Encode()),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+
+	result := &CheckBookmarkResponse{}
+	if err := json.NewDecoder(body).Decode(result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // CreateBookmark creates a new bookmark in Linkding using the provided payload.
